@@ -153,7 +153,7 @@ public class FlameRectangle extends View {
                     x = rectangle.left + y - (rectangle.bottom - rcCornerRadius);
                 }
                 break;
-
+                //...
             case TOP:
                 x += moveDistance;
                 rotationAngle = 0;
