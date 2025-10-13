@@ -54,5 +54,6 @@ public class FlameRectangle extends View {
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
 
+        int a;
     }
 }
