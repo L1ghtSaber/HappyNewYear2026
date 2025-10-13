@@ -156,7 +156,7 @@ public class FlameRectangle extends View {
 
             case TOP:
                 x += moveDistance;
-                rotationAngle = 180;
+                rotationAngle = 0;
                 if (x > rectangle.right - rcCornerRadius) {
                     x = rectangle.right - rcCornerRadius;
                     y = rectangle.top + x - (rectangle.right - rcCornerRadius);
@@ -174,7 +174,7 @@ public class FlameRectangle extends View {
 
             case BOTTOM:
                 x -= moveDistance;
-                rotationAngle = 0;
+                rotationAngle = 180;
                 if (x < rectangle.left + rcCornerRadius) {
                     x = rectangle.left + rcCornerRadius;
                     y = rectangle.bottom - (rectangle.left + rcCornerRadius) - x;
