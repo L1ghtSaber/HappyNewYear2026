@@ -5,22 +5,20 @@ import android.graphics.*;
 import android.util.AttributeSet;
 import android.view.View;
 
+import androidx.annotation.NonNull;
+
+import java.lang.reflect.Array;
+import java.util.ArrayList;
+
 public class FlameRectangle extends View {
-    private Paint rcPaint, trPaint;
-    private RectF rectangle;
-    private Path triangle;
-    private Matrix trMatrix;
 
-    private int rcColor = Color.RED, trColor = Color.BLUE,
-            trCount;
-    private float trSideFactor = 0.1f,
-            trSide, perimeter, trGap, trSpeed = 1f,
-            rcCornerRadius;
-    private float[][] points;
+    private Paint primaryPaint, secondaryPaint;
+    private RectF primaryRect;
+    private float secondaryRectSide, secondaryRectSideFactor = 0.05f, secondaryRectSpeed = 1f;
+    private ArrayList<SecondaryRect> secondaryRects;
 
-    private enum TrianglePosition {
-        LEFT, TOP, RIGHT, BOTTOM,
-        LT_CORNER, RT_CORNER, RB_CORNER, LB_CORNER;
+    private enum Position {
+        LEFT, TOP, RIGHT, BOTTOM;
     }
 
     public FlameRectangle(Context context) {
@@ -39,197 +37,323 @@ public class FlameRectangle extends View {
     }
 
     private void init() {
-        rcPaint = new Paint();
-        rcPaint.setColor(rcColor);
-        rcPaint.setStyle(Paint.Style.FILL);
+        secondaryRects = new ArrayList<>();
 
-        trPaint = new Paint();
-        trPaint.setColor(trColor);
-        trPaint.setStyle(Paint.Style.FILL);
+        primaryPaint = new Paint();
+        primaryPaint.setColor(Color.RED);
+        primaryPaint.setStyle(Paint.Style.FILL);
 
-        triangle = new Path();
-
-        trMatrix = new Matrix();
+        secondaryPaint = new Paint();
+        secondaryPaint.setColor(Color.BLUE);
+        secondaryPaint.setStyle(Paint.Style.FILL);
     }
 
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
 
-        trSide = trSideFactor * Math.min(w, h);
-        rectangle = new RectF(trSide, trSide, w - trSide, h - trSide);
-        perimeter = rectangle.width() * 2 + rectangle.height() * 2;
-        trCount = (int) (perimeter / trSide);
-        trGap = (perimeter - trCount * trSide) / trCount;
-        rcCornerRadius = trSide / 2;
+        secondaryRectSide = secondaryRectSideFactor * Math.min(w, h);
+        primaryRect = new RectF(secondaryRectSide, secondaryRectSide, w - secondaryRectSide, h - secondaryRectSide);
 
-        points = new float[trCount][3];
-        points[0][0] = rectangle.left;
-        points[0][1] = rectangle.top + rcCornerRadius + trSide / 2;
-        points[0][2] = 90;
-        for (int i = 1; i < trCount; i++)
-            points[i] = getNextPoint(points[i-1][0], points[i-1][1], true);
+        float x = primaryRect.left - secondaryRectSide, y = primaryRect.bottom - secondaryRectSide;
+        Position position = Position.LEFT;
+        float perimeter = primaryRect.height() * 2 + primaryRect.width() * 2;
+        int amount = (int) Math.floor(perimeter / (2 * secondaryRectSide)), amountH = 0, amountW = 0;
+        amount -= amount % 2;
+        float ratio = primaryRect.width() / primaryRect.height();
+        if (ratio > 1) {
+            amountW = (int) Math.round(amount * ratio / (ratio + 1));
+            amountH = amount - amountW;
+        } else {
+            amountH = (int) Math.round(amount / (ratio + 1));
+            amountW = amount - amountH;
+        }
+        amountW = amount - amountH;
+//        THIS: while (true) {
+//            secondaryRects.add(new SecondaryRect(x, y, position));
+//            float d;
+//            switch (position) {
+//                case LEFT:
+//                    y -= 2 * secondaryRectSide;
+//                    d = primaryRect.top - y;
+//                    if (d > 0) {
+//                        x += d;
+//                        position = Position.TOP;
+//                        y = primaryRect.top - secondaryRectSide;
+//                    }
+//                    break;
+//                case TOP:
+//                    x += 2 * secondaryRectSide;
+//                    d = x - primaryRect.right;
+//                    if (d > 0) {
+//                        y += d;
+//                        position = Position.RIGHT;
+//                        x = primaryRect.right;
+//                    }
+//                    break;
+//                case RIGHT:
+//                    y += 2 * secondaryRectSide;
+//                    d = y - primaryRect.bottom;
+//                    if (d > 0) {
+//                        x -= d;
+//                        position = Position.BOTTOM;
+//                        y = primaryRect.bottom;
+//                    }
+//                    break;
+//                case BOTTOM:
+//                    x -= 2 * secondaryRectSide;
+//                    d = primaryRect.left - x;
+//                    if (d > 0) break THIS;
+//                    break;
+//            }
+//        }
     }
 
     @Override
-    protected void onDraw(Canvas canvas) {
+    protected void onDraw(@NonNull Canvas canvas) {
         super.onDraw(canvas);
 
-        canvas.drawRect(rectangle, rcPaint);
+        canvas.drawRect(primaryRect, primaryPaint);
 
-        for (int i = 0; i < trCount; i++) {
-            float x = points[i][0], y = points[i][1];
-            points[i] = getNextPoint(x, y, false);
-
-            triangle.reset();
-            triangle.moveTo(0, trSide * 0.866f);
-            triangle.lineTo(-trSide / 2, 0);
-            triangle.lineTo(trSide / 2, 0);
-            triangle.close();
-
-            trMatrix.reset();
-            trMatrix.postRotate(points[i][2]);
-            trMatrix.postTranslate(x, y);
-            triangle.transform(trMatrix);
-
-            canvas.drawPath(triangle, trPaint);
+        for (int i = 0; i < secondaryRects.size(); i++) {
+            secondaryRects.get(i).draw(canvas);
         }
 
-        if (trSpeed != 0) invalidate();
+        if (secondaryRectSpeed != 0) moveRects();
     }
 
-    private TrianglePosition getPointPosition(float x, float y) {
-        if (Math.abs(x - rectangle.left) < 1 &&
-                y > rectangle.top + rcCornerRadius &&
-                y <= rectangle.bottom - rcCornerRadius)
-            return TrianglePosition.LEFT;
-
-        if (Math.abs(y - rectangle.top) < 1 &&
-                x > rectangle.left + rcCornerRadius &&
-                x <= rectangle.right - rcCornerRadius)
-            return TrianglePosition.TOP;
-
-        if (Math.abs(x - rectangle.right) < 1 &&
-                y > rectangle.top + rcCornerRadius &&
-                y <= rectangle.bottom - rcCornerRadius)
-            return TrianglePosition.RIGHT;
-
-        if (Math.abs(y - rectangle.bottom) < 1 &&
-                x > rectangle.left + rcCornerRadius &&
-                x <= rectangle.right - rcCornerRadius)
-            return TrianglePosition.BOTTOM;
-
-        if (x >= rectangle.left && x <= rectangle.left + rcCornerRadius &&
-                y >= rectangle.top && y <= rectangle.top + rcCornerRadius)
-            return TrianglePosition.LT_CORNER;
-
-        if (x >= rectangle.right - rcCornerRadius && x <= rectangle.right &&
-                y >= rectangle.top && y <= rectangle.top + rcCornerRadius)
-            return TrianglePosition.RT_CORNER;
-
-        if (x >= rectangle.right - rcCornerRadius && x <= rectangle.right &&
-                y >= rectangle.bottom - rcCornerRadius && y <= rectangle.bottom)
-            return TrianglePosition.RB_CORNER;
-
-        if (x >= rectangle.left && x <= rectangle.left + rcCornerRadius &&
-                y >= rectangle.bottom - rcCornerRadius && y <= rectangle.bottom)
-            return TrianglePosition.LB_CORNER;
-
-        return TrianglePosition.LEFT;
-    }
-
-    private float[] getNextPoint(float startX, float startY, boolean initial) {
-        TrianglePosition position = getPointPosition(startX, startY);
-        float x = startX, y = startY;
-        float rotationAngle = 0;
-        float moveDistance = initial ? (trSide + trGap) : trSpeed;
-
-        switch (position) {
-            case LEFT:
-                y += moveDistance;
-                rotationAngle = 90;
-                if (y > rectangle.bottom - rcCornerRadius) {
-                    y = rectangle.bottom - rcCornerRadius;
-                    x = rectangle.left + y - (rectangle.bottom - rcCornerRadius);
-                }
-                break;
-                //...
-            case TOP:
-                x += moveDistance;
-                rotationAngle = 0;
-                if (x > rectangle.right - rcCornerRadius) {
-                    x = rectangle.right - rcCornerRadius;
-                    y = rectangle.top + x - (rectangle.right - rcCornerRadius);
-                }
-                break;
-
-            case RIGHT:
-                y -= moveDistance;
-                rotationAngle = 270;
-                if (y < rectangle.top + rcCornerRadius) {
-                    y = rectangle.top + rcCornerRadius;
-                    x = rectangle.right - (rectangle.top + rcCornerRadius) - y;
-                }
-                break;
-
-            case BOTTOM:
-                x -= moveDistance;
-                rotationAngle = 180;
-                if (x < rectangle.left + rcCornerRadius) {
-                    x = rectangle.left + rcCornerRadius;
-                    y = rectangle.bottom - (rectangle.left + rcCornerRadius) - x;
-                }
-                break;
-
-            case LT_CORNER:
-                float angleLT = (float) Math.atan2(startY - rectangle.top, startX - rectangle.left);
-                angleLT += moveDistance / rcCornerRadius;
-                x = rectangle.left + (float) (rcCornerRadius * Math.cos(angleLT));
-                y = rectangle.top + (float) (rcCornerRadius * Math.sin(angleLT));
-                rotationAngle = angleLT * 180 / (float) Math.PI + 90;
-                if (angleLT >= Math.PI / 2) {
-                    x = rectangle.left;
-                    y = rectangle.top + rcCornerRadius;
-                }
-                break;
-
-            case RT_CORNER:
-                float angleRT = (float) Math.atan2(startY - rectangle.top, startX - rectangle.right);
-                angleRT += moveDistance / rcCornerRadius;
-                x = rectangle.right + (float) (rcCornerRadius * Math.cos(angleRT));
-                y = rectangle.top + (float) (rcCornerRadius * Math.sin(angleRT));
-                rotationAngle = angleRT * 180 / (float) Math.PI + 180;
-                if (angleRT >= Math.PI / 2) {
-                    x = rectangle.right - rcCornerRadius;
-                    y = rectangle.top;
-                }
-                break;
-
-            case RB_CORNER:
-                float angleRB = (float) Math.atan2(startY - rectangle.bottom, startX - rectangle.right);
-                angleRB += moveDistance / rcCornerRadius;
-                x = rectangle.right + (float) (rcCornerRadius * Math.cos(angleRB));
-                y = rectangle.bottom + (float) (rcCornerRadius * Math.sin(angleRB));
-                rotationAngle = angleRB * 180 / (float) Math.PI + 270;
-                if (angleRB >= Math.PI / 2) {
-                    x = rectangle.right;
-                    y = rectangle.bottom - rcCornerRadius;
-                }
-                break;
-
-            case LB_CORNER:
-                float angleLB = (float) Math.atan2(startY - rectangle.bottom, startX - rectangle.left);
-                angleLB += moveDistance / rcCornerRadius;
-                x = rectangle.left + (float) (rcCornerRadius * Math.cos(angleLB));
-                y = rectangle.bottom + (float) (rcCornerRadius * Math.sin(angleLB));
-                rotationAngle = angleLB * 180 / (float) Math.PI;
-                if (angleLB >= Math.PI / 2) {
-                    x = rectangle.left + rcCornerRadius;
-                    y = rectangle.bottom;
-                }
-                break;
+    void moveRects() {
+        for (int i = 0; i < secondaryRects.size(); i++) {
+            secondaryRects.get(i).move();
         }
 
-        return new float[]{x, y, rotationAngle};
+        invalidate();
     }
+
+    private class SecondaryRect {
+        private Position position;
+        private float x, y;
+
+        SecondaryRect(float x, float y, Position position) {
+            this.position = position;
+            this.x = x;
+            this.y = y;
+        }
+
+        void move() {
+            switch (position) {
+                case LEFT:
+                case RIGHT:
+                    y += secondaryRectSpeed * (position == Position.LEFT ? -1 : 1);
+                    if (y < primaryRect.top) {
+
+                    }
+                    if (y + secondaryRectSide > primaryRect.bottom) {
+
+                    }
+                    break;
+                case TOP:
+                case BOTTOM:
+                    x += secondaryRectSpeed * (position == Position.TOP ? 1 : -1);
+                    if (x < primaryRect.left) {
+
+                    }
+                    if (x + secondaryRectSide > primaryRect.right) {
+
+                    }
+                    break;
+            }
+        }
+
+        void draw(Canvas canvas) {
+
+        }
+    }
+
+    //    private void init() {
+//        rcPaint = new Paint();
+//        rcPaint.setColor(rcColor);
+//        rcPaint.setStyle(Paint.Style.FILL);
+//
+//        trPaint = new Paint();
+//        trPaint.setColor(trColor);
+//        trPaint.setStyle(Paint.Style.FILL);
+//
+//        triangle = new Path();
+//
+//        trMatrix = new Matrix();
+//    }
+//
+//    @Override
+//    protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+//        super.onSizeChanged(w, h, oldw, oldh);
+//
+//        trSide = trSideFactor * Math.min(w, h);
+//        rectangle = new RectF(trSide, trSide, w - trSide, h - trSide);
+//        perimeter = rectangle.width() * 2 + rectangle.height() * 2;
+//        trCount = (int) (perimeter / trSide);
+//        trGap = (perimeter - trCount * trSide) / trCount;
+//        rcCornerRadius = trSide / 2;
+//
+//        points = new float[trCount][3];
+//        points[0][0] = rectangle.left;
+//        points[0][1] = rectangle.top + rcCornerRadius + trSide / 2;
+//        points[0][2] = 90;
+//        for (int i = 1; i < trCount; i++)
+//            points[i] = getNextPoint(points[i-1], true);
+//    }
+//
+//    @Override
+//    protected void onDraw(Canvas canvas) {
+//        super.onDraw(canvas);
+//
+//        canvas.drawRect(rectangle, rcPaint);
+//
+//        for (int i = 0; i < trCount; i++) {
+//            float x = points[i][0], y = points[i][1];
+//            points[i] = getNextPoint(points[i], false);
+//
+//            triangle.reset();
+//            triangle.moveTo(0, trSide * 0.866f);
+//            triangle.lineTo(-trSide / 2, 0);
+//            triangle.lineTo(trSide / 2, 0);
+//            triangle.close();
+//
+//            trMatrix.reset();
+//            trMatrix.postRotate(points[i][2]);
+//            trMatrix.postTranslate(x, y);
+//            triangle.transform(trMatrix);
+//
+//            canvas.drawPath(triangle, trPaint);
+//        }
+//
+//        if (trSpeed != 0) invalidate();
+//    }
+//
+//    private TrianglePosition getPointPosition(float x, float y) {
+//        float t = 2f;
+//
+//        if (Math.abs(x - rectangle.left) < t &&
+//                y > rectangle.top + rcCornerRadius &&
+//                y <= rectangle.bottom - rcCornerRadius)
+//            return TrianglePosition.LEFT;
+//
+//        if (Math.abs(y - rectangle.top) < t &&
+//                x > rectangle.left + rcCornerRadius &&
+//                x <= rectangle.right - rcCornerRadius)
+//            return TrianglePosition.TOP;
+//
+//        if (Math.abs(x - rectangle.right) < t &&
+//                y > rectangle.top + rcCornerRadius &&
+//                y <= rectangle.bottom - rcCornerRadius)
+//            return TrianglePosition.RIGHT;
+//
+//        if (Math.abs(y - rectangle.bottom) < t &&
+//                x > rectangle.left + rcCornerRadius &&
+//                x <= rectangle.right - rcCornerRadius)
+//            return TrianglePosition.BOTTOM;
+//
+//        if (x >= rectangle.left && x <= rectangle.left + rcCornerRadius &&
+//                y >= rectangle.top && y <= rectangle.top + rcCornerRadius)
+//            return TrianglePosition.LT_CORNER;
+//
+//        if (x >= rectangle.right - rcCornerRadius && x <= rectangle.right &&
+//                y >= rectangle.top && y <= rectangle.top + rcCornerRadius)
+//            return TrianglePosition.RT_CORNER;
+//
+//        if (x >= rectangle.right - rcCornerRadius && x <= rectangle.right &&
+//                y >= rectangle.bottom - rcCornerRadius && y <= rectangle.bottom)
+//            return TrianglePosition.RB_CORNER;
+//
+//        if (x >= rectangle.left && x <= rectangle.left + rcCornerRadius &&
+//                y >= rectangle.bottom - rcCornerRadius && y <= rectangle.bottom)
+//            return TrianglePosition.LB_CORNER;
+//
+//        return TrianglePosition.LEFT;
+//    }
+//
+//    private float[] getNextPoint(float[] point, boolean initial) {
+//        TrianglePosition position = getPointPosition(point[0], point[1]);
+//        float x = point[0], y = point[1], rotationAngle = point[2],
+//                moveDistance = initial ? (trSide + trGap) : trSpeed,
+//                angle = (float) (Math.toRadians(rotationAngle) + Math.PI / 2),
+//                mDx = 0, mDy = 0;
+//
+//        switch (position) {
+//            case LEFT:
+//                y += moveDistance;
+//                rotationAngle = 90;
+//                break;
+//            case TOP:
+//                x += moveDistance;
+//                rotationAngle = 0;
+//                break;
+//            case RIGHT:
+//                y -= moveDistance;
+//                rotationAngle = 270;
+//                break;
+//            case BOTTOM:
+//                x -= moveDistance;
+//                rotationAngle = 180;
+//                break;
+//            case LT_CORNER:
+//            case RT_CORNER:
+//            case RB_CORNER:
+//            case LB_CORNER:
+////                mDx = rcCornerRadius * (float) Math.cos(Math.toRadians(rotationAngle));
+////                mDy = rcCornerRadius * (float) Math.sin(Math.toRadians(rotationAngle));
+//                mDx = trSpeed;
+//                mDy = trSpeed;
+//                break;
+//        }
+//
+//        switch (position) {
+//            case LT_CORNER:
+//                x -= mDx;
+//                y += mDy;
+//                rotationAngle += (float) Math.toDegrees(trSpeed / rcCornerRadius);
+//                break;
+//            case RB_CORNER:
+//                x += mDx;
+//                y -= mDy;
+//                rotationAngle -= (float) Math.toDegrees(trSpeed / rcCornerRadius);
+//                break;
+//            case RT_CORNER:
+//                x -= mDx;
+//                y -= mDy;
+//                rotationAngle += (float) Math.toDegrees(trSpeed / rcCornerRadius);
+//                break;
+//            case LB_CORNER:
+//                x += mDx;
+//                y += mDy;
+//                rotationAngle -= (float) Math.toDegrees(trSpeed / rcCornerRadius);
+//                break;
+//        }
+//
+//        return new float[]{x, y, rotationAngle};
+//    }
+//
+//    private static class Triangle {
+//        private enum Position {
+//            LEFT, TOP, RIGHT, BOTTOM,
+//            LT_CORNER, RT_CORNER, RB_CORNER, LB_CORNER;
+//        }
+//
+//        private static Matrix matrix;
+//        private static Path body;
+//        private static Paint paint;
+//        private static float sideFactor, side, speed, gap;
+//
+//        private float x, y, rotationAngle;
+//        private Position position;
+//    }
+//
+//    private static class Rectangle {
+//        private static Paint paint;
+//
+//        private RectF body;
+//        private float perimeter, cornerRadius;
+//
+//        Rectangle()
+//    }
 }
