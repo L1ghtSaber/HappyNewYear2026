@@ -14,7 +14,7 @@ public class FlameRectangle extends View {
 
     private Paint primaryPaint, secondaryPaint;
     private RectF primaryRect;
-    private float secondaryRectSide, secondaryRectSideFactor = 0.05f, secondaryRectSpeed = 1f;
+    private float secondaryRectSide, secondaryRectSideFactor = 0.05f, secondaryRectSpeed = 10f, rectGap;
     private ArrayList<SecondaryRect> secondaryRects;
 
     private enum Position {
@@ -55,58 +55,56 @@ public class FlameRectangle extends View {
         secondaryRectSide = secondaryRectSideFactor * Math.min(w, h);
         primaryRect = new RectF(secondaryRectSide, secondaryRectSide, w - secondaryRectSide, h - secondaryRectSide);
 
-        float x = primaryRect.left - secondaryRectSide, y = primaryRect.bottom - secondaryRectSide;
+        float x = primaryRect.left - secondaryRectSide, y = primaryRect.bottom - secondaryRectSide, oldX, oldY;
         Position position = Position.LEFT;
-        float perimeter = primaryRect.height() * 2 + primaryRect.width() * 2;
-        int amount = (int) Math.floor(perimeter / (2 * secondaryRectSide)), amountH = 0, amountW = 0;
-        amount -= amount % 2;
-        float ratio = primaryRect.width() / primaryRect.height();
-        if (ratio > 1) {
-            amountW = (int) Math.round(amount * ratio / (ratio + 1));
-            amountH = amount - amountW;
-        } else {
-            amountH = (int) Math.round(amount / (ratio + 1));
-            amountW = amount - amountH;
+        float perimeter = primaryRect.width() * 2 + primaryRect.height() * 2;
+        int amount = (int) Math.floor(perimeter / (2 * secondaryRectSide));
+        rectGap = (perimeter - amount * 2 * secondaryRectSide) / amount + secondaryRectSide;
+
+        THIS: while (true) {
+            SecondaryRect rect = new SecondaryRect(x, y, position);
+            secondaryRects.add(rect);
+            oldX = x;
+            oldY = y;
+            switch (position) {
+                case LEFT:
+                    y -= rectGap + secondaryRectSide;
+                    if (y <= primaryRect.top) {
+                        position = Position.TOP;
+                        y = primaryRect.top - secondaryRectSide;
+                        x = primaryRect.left;
+                        //if (oldY - y < rectGap) secondaryRects.remove(rect);
+                    }
+                    break;
+                case TOP:
+                    x += rectGap + secondaryRectSide;
+                    if (x + secondaryRectSide >= primaryRect.right) {
+                        position = Position.RIGHT;
+                        x = primaryRect.right;
+                        y = primaryRect.top;
+                        //if (x - oldX < rectGap) secondaryRects.remove(rect);
+                    }
+                    break;
+                case RIGHT:
+                    y += rectGap + secondaryRectSide;
+                    if (y + secondaryRectSide >= primaryRect.bottom) {
+                        position = Position.BOTTOM;
+                        y = primaryRect.bottom;
+                        x = primaryRect.right - secondaryRectSide;
+                        //if (y - oldY < rectGap) secondaryRects.remove(rect);
+                    }
+                    break;
+                case BOTTOM:
+                    x -= rectGap + secondaryRectSide;
+                    if (x <= primaryRect.left) {
+                        //if (oldX - x < rectGap) secondaryRects.remove(rect);
+                        SecondaryRect first = secondaryRects.get(0);
+                        //if (Math.sqrt(Math.pow(oldX - first.getX(), 2) + Math.pow(oldY - first.getY(), 2)) < rectGap) secondaryRects.remove(rect);
+                        break THIS;
+                    }
+                    break;
+            }
         }
-        amountW = amount - amountH;
-//        THIS: while (true) {
-//            secondaryRects.add(new SecondaryRect(x, y, position));
-//            float d;
-//            switch (position) {
-//                case LEFT:
-//                    y -= 2 * secondaryRectSide;
-//                    d = primaryRect.top - y;
-//                    if (d > 0) {
-//                        x += d;
-//                        position = Position.TOP;
-//                        y = primaryRect.top - secondaryRectSide;
-//                    }
-//                    break;
-//                case TOP:
-//                    x += 2 * secondaryRectSide;
-//                    d = x - primaryRect.right;
-//                    if (d > 0) {
-//                        y += d;
-//                        position = Position.RIGHT;
-//                        x = primaryRect.right;
-//                    }
-//                    break;
-//                case RIGHT:
-//                    y += 2 * secondaryRectSide;
-//                    d = y - primaryRect.bottom;
-//                    if (d > 0) {
-//                        x -= d;
-//                        position = Position.BOTTOM;
-//                        y = primaryRect.bottom;
-//                    }
-//                    break;
-//                case BOTTOM:
-//                    x -= 2 * secondaryRectSide;
-//                    d = primaryRect.left - x;
-//                    if (d > 0) break THIS;
-//                    break;
-//            }
-//        }
     }
 
     @Override
@@ -145,28 +143,44 @@ public class FlameRectangle extends View {
                 case LEFT:
                 case RIGHT:
                     y += secondaryRectSpeed * (position == Position.LEFT ? -1 : 1);
-                    if (y < primaryRect.top) {
-
+                    if (y + secondaryRectSide < primaryRect.top) {
+                        y = primaryRect.top - secondaryRectSide;
+                        position = Position.TOP;
                     }
-                    if (y + secondaryRectSide > primaryRect.bottom) {
-
+                    if (y > primaryRect.bottom) {
+                        y = primaryRect.bottom;
+                        position = Position.BOTTOM;
                     }
                     break;
                 case TOP:
                 case BOTTOM:
                     x += secondaryRectSpeed * (position == Position.TOP ? 1 : -1);
-                    if (x < primaryRect.left) {
-
+                    if (x + secondaryRectSide < primaryRect.left) {
+                        x = primaryRect.left - secondaryRectSide;
+                        position = Position.LEFT;
                     }
-                    if (x + secondaryRectSide > primaryRect.right) {
-
+                    if (x > primaryRect.right) {
+                        x = primaryRect.right;
+                        position = Position.RIGHT;
                     }
                     break;
             }
         }
 
         void draw(Canvas canvas) {
+            canvas.drawRect(x, y, x + secondaryRectSide, y + secondaryRectSide, secondaryPaint);
+        }
 
+        Position getPosition() {
+            return position;
+        }
+
+        float getX() {
+            return x;
+        }
+
+        float getY() {
+            return y;
         }
     }
 
