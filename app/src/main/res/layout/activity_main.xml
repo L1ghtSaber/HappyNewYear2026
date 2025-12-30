@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/primary"
+    android:background="@color/deep_night"
     tools:context=".MainActivity">
 
 <!--    <TextView-->
@@ -22,17 +22,58 @@
 <!--        android:layout_marginStart="10dp"-->
 <!--        android:layout_marginEnd="10dp"/>-->
 
-    <com.example.happynewyear2026.FlameRectangle
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:orientation="vertical"
+    <FrameLayout
+        android:layout_width="200dp"
+        android:layout_height="80dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
-        android:layout_marginTop="10dp"
-        android:layout_marginBottom="10dp"
-        android:layout_marginStart="10dp"
-        android:layout_marginEnd="10dp"/>
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintVertical_bias="0.4">
+
+        <com.example.happynewyear2026.FlameRectangleView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fontFamily="@font/font_8_bit"
+            android:text="@string/play"
+            android:textAlignment="center"
+            android:textColor="@color/dirty_white"
+            android:textSize="30sp"
+            android:layout_gravity="center"
+            android:gravity="center"/>
+
+    </FrameLayout>
+
+    <FrameLayout
+        android:layout_width="200dp"
+        android:layout_height="80dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintVertical_bias="0.6">
+
+        <com.example.happynewyear2026.FlameRectangleView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fontFamily="@font/font_8_bit"
+            android:text="@string/open_congrats"
+            android:textAlignment="center"
+            android:textColor="@color/dirty_white"
+            android:textSize="20sp"
+            android:layout_gravity="center"
+            android:gravity="center"/>
+
+    </FrameLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">HappyNewYear2026</string>
+    <string name="play">ИГРАТЬ</string>
+    <string name="open_congrats">ОТКРЫТЬ ПОЗДРАВЛЕНИЯ</string>
 </resources>

@@ -7,44 +7,43 @@ import android.view.View;
 
 import androidx.annotation.NonNull;
 
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 
-public class FlameRectangle extends View {
+public class FlameRectangleView extends View {
 
     private Paint primaryPaint, secondaryPaint;
     private RectF primaryRect;
-    private float secondaryRectSide, secondaryRectSideFactor = 0.05f, secondaryRectSpeed = 10f, rectGap;
+    private float secondaryRectSide, secondaryRectSideFactor = 0.05f, secondaryRectSpeed = 10f;
     private ArrayList<SecondaryRect> secondaryRects;
 
     private enum Position {
         LEFT, TOP, RIGHT, BOTTOM;
     }
 
-    public FlameRectangle(Context context) {
+    public FlameRectangleView(Context context) {
         super(context);
-        init();
+        init(context);
     }
 
-    public FlameRectangle(Context context, AttributeSet attrs) {
+    public FlameRectangleView(Context context, AttributeSet attrs) {
         super(context, attrs);
-        init();
+        init(context);
     }
 
-    public FlameRectangle(Context context, AttributeSet attrs, int defStyleAttr) {
+    public FlameRectangleView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
-        init();
+        init(context);
     }
 
-    private void init() {
+    private void init(Context context) {
         secondaryRects = new ArrayList<>();
 
         primaryPaint = new Paint();
-        primaryPaint.setColor(Color.RED);
+        primaryPaint.setColor(context.getResources().getColor(R.color.primary));
         primaryPaint.setStyle(Paint.Style.FILL);
 
         secondaryPaint = new Paint();
-        secondaryPaint.setColor(Color.BLUE);
+        secondaryPaint.setColor(context.getResources().getColor(R.color.secondary));
         secondaryPaint.setStyle(Paint.Style.FILL);
     }
 
@@ -55,51 +54,49 @@ public class FlameRectangle extends View {
         secondaryRectSide = secondaryRectSideFactor * Math.min(w, h);
         primaryRect = new RectF(secondaryRectSide, secondaryRectSide, w - secondaryRectSide, h - secondaryRectSide);
 
-        float x = primaryRect.left - secondaryRectSide, y = primaryRect.bottom - secondaryRectSide, oldX, oldY;
+        float x = primaryRect.left - secondaryRectSide, y = primaryRect.bottom - secondaryRectSide;
         Position position = Position.LEFT;
-        float perimeter = primaryRect.width() * 2 + primaryRect.height() * 2;
-        int amount = (int) Math.floor(perimeter / (2 * secondaryRectSide));
-        rectGap = (perimeter - amount * 2 * secondaryRectSide) / amount + secondaryRectSide;
+        //float perimeter = primaryRect.width() * 2 + primaryRect.height() * 2;
+        //int amount = (int) Math.floor(perimeter / (2 * secondaryRectSide));
+        //float rectGap = (perimeter - amount * 2 * secondaryRectSide) / amount + secondaryRectSide;
+
 
         THIS: while (true) {
-            SecondaryRect rect = new SecondaryRect(x, y, position);
-            secondaryRects.add(rect);
-            oldX = x;
-            oldY = y;
+            secondaryRects.add(new SecondaryRect(x, y, position));
+
+            float rectGap = (float) Math.random() * secondaryRectSide * 2 + secondaryRectSide * 2;
+
             switch (position) {
                 case LEFT:
                     y -= rectGap + secondaryRectSide;
                     if (y <= primaryRect.top) {
                         position = Position.TOP;
+                        float y1 = y;
                         y = primaryRect.top - secondaryRectSide;
-                        x = primaryRect.left;
-                        //if (oldY - y < rectGap) secondaryRects.remove(rect);
+                        x = primaryRect.left - secondaryRectSide + y - y1;
                     }
                     break;
                 case TOP:
                     x += rectGap + secondaryRectSide;
                     if (x + secondaryRectSide >= primaryRect.right) {
                         position = Position.RIGHT;
+                        float x1 = x;
                         x = primaryRect.right;
-                        y = primaryRect.top;
-                        //if (x - oldX < rectGap) secondaryRects.remove(rect);
+                        y = primaryRect.top - secondaryRectSide + x1 - x;
                     }
                     break;
                 case RIGHT:
                     y += rectGap + secondaryRectSide;
                     if (y + secondaryRectSide >= primaryRect.bottom) {
                         position = Position.BOTTOM;
+                        float y1 = y;
                         y = primaryRect.bottom;
-                        x = primaryRect.right - secondaryRectSide;
-                        //if (y - oldY < rectGap) secondaryRects.remove(rect);
+                        x = primaryRect.right - (y - y1);
                     }
                     break;
                 case BOTTOM:
                     x -= rectGap + secondaryRectSide;
                     if (x <= primaryRect.left) {
-                        //if (oldX - x < rectGap) secondaryRects.remove(rect);
-                        SecondaryRect first = secondaryRects.get(0);
-                        //if (Math.sqrt(Math.pow(oldX - first.getX(), 2) + Math.pow(oldY - first.getY(), 2)) < rectGap) secondaryRects.remove(rect);
                         break THIS;
                     }
                     break;
@@ -120,7 +117,7 @@ public class FlameRectangle extends View {
         if (secondaryRectSpeed != 0) moveRects();
     }
 
-    void moveRects() {
+    private void moveRects() {
         for (int i = 0; i < secondaryRects.size(); i++) {
             secondaryRects.get(i).move();
         }
@@ -132,13 +129,13 @@ public class FlameRectangle extends View {
         private Position position;
         private float x, y;
 
-        SecondaryRect(float x, float y, Position position) {
+        public SecondaryRect(float x, float y, Position position) {
             this.position = position;
             this.x = x;
             this.y = y;
         }
 
-        void move() {
+        public void move() {
             switch (position) {
                 case LEFT:
                 case RIGHT:
@@ -167,19 +164,19 @@ public class FlameRectangle extends View {
             }
         }
 
-        void draw(Canvas canvas) {
+        public void draw(Canvas canvas) {
             canvas.drawRect(x, y, x + secondaryRectSide, y + secondaryRectSide, secondaryPaint);
         }
 
-        Position getPosition() {
+        public Position getPosition() {
             return position;
         }
 
-        float getX() {
+        public float getX() {
             return x;
         }
 
-        float getY() {
+        public float getY() {
             return y;
         }
     }
