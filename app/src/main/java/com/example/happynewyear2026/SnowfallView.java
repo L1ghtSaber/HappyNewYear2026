@@ -7,15 +7,16 @@ import android.util.AttributeSet;
 import android.view.View;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 
-import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Random;
 
 public class SnowfallView extends View {
 
     private enum Event {
-        DEFAULT, CREATE_NEW, REMOVE_EXPIRED;
+        DEFAULT, CREATE_NEW, REMOVE_EXPIRED
     }
 
     private volatile Event currentEvent = Event.DEFAULT;
@@ -25,10 +26,11 @@ public class SnowfallView extends View {
     private Paint snowPaint;
     private ArrayList<Snowflake> snowflakes;
     private CountDownTimer timer;
+    private Random random;
 
     private int maxSnowflakesCount = 30;
     private float maxSnowflakeSize = 40, minSnowflakeSize = maxSnowflakeSize / 4;
-    private long timeToCreateSnowflakes;
+    private long timeToCreateSnowflakes = 1000;
 
     private ArrayList<Integer> expiredSnowflakesIndexes;
 
@@ -50,14 +52,18 @@ public class SnowfallView extends View {
     private void init(Context context) {
         snowflakes = new ArrayList<>();
         expiredSnowflakesIndexes = new ArrayList<>();
+        random = new Random();
 
         snowPaint = new Paint();
-        snowPaint.setColor(context.getResources().getColor(R.color.dirty_white));
+        snowPaint.setColor(ContextCompat.getColor(context, R.color.dirty_white));
 
-        timer = new CountDownTimer(1000000, 5000) {
+        timer = new CountDownTimer(Long.MAX_VALUE, timeToCreateSnowflakes) {
             @Override
             public void onTick(long millisUntilFinished) {
-
+                if (snowflakes.size() < maxSnowflakesCount) {
+                    currentEvent = Event.CREATE_NEW;
+                    //invalidate();
+                }
             }
 
             @Override
@@ -74,7 +80,7 @@ public class SnowfallView extends View {
         this.w = w;
         this.h = h;
 
-        maxSnowflakeSize = Math.min(w, h) * 0.1f;
+        maxSnowflakeSize = Math.min(w, h) * 0.025f;
         minSnowflakeSize = maxSnowflakeSize / 4;
     }
 
@@ -90,8 +96,14 @@ public class SnowfallView extends View {
     }
 
     private void moveSnowflakes() {
+        if (expiredSnowflakesIndexes.size() > 0) {
+            currentEvent = Event.REMOVE_EXPIRED;
+        }
+
         for (int i = 0; i < snowflakes.size(); i++) {
-            if (snowflakes.get(i).move() == Event.REMOVE_EXPIRED) {
+            Snowflake snowflake = snowflakes.get(i);
+            Event event = snowflake.move();
+            if (event == Event.REMOVE_EXPIRED) {
                 expiredSnowflakesIndexes.add(i);
             }
         }
@@ -103,53 +115,112 @@ public class SnowfallView extends View {
     public void invalidate() {
         switch (currentEvent) {
             case CREATE_NEW:
-                generateNewSnowflake();
+                if (snowflakes.size() < maxSnowflakesCount) {
+                    generateNewSnowflake();
+                }
+                currentEvent = Event.DEFAULT;
                 break;
             case REMOVE_EXPIRED:
                 removeExpiredSnowflakes();
+                currentEvent = Event.DEFAULT;
                 break;
             case DEFAULT:
             default:
+                break;
         }
 
         super.invalidate();
     }
 
     private void removeExpiredSnowflakes() {
+        if (expiredSnowflakesIndexes.isEmpty()) return;
+
+        expiredSnowflakesIndexes.sort(new Comparator<Integer>() {
+            @Override
+            public int compare(Integer a, Integer b) {
+                return Integer.compare(b, a);
+            }
+        });
+
         for (int i = 0; i < expiredSnowflakesIndexes.size(); i++) {
-            snowflakes.remove(expiredSnowflakesIndexes.get(i));
+            int index = expiredSnowflakesIndexes.get(i);
+            if (index >= 0 && index < snowflakes.size()) {
+                snowflakes.remove(index);
+            }
         }
+        expiredSnowflakesIndexes.clear();
     }
 
     private void generateNewSnowflake() {
-        float size = (float) Math.random() * (maxSnowflakeSize - minSnowflakeSize) + minSnowflakeSize;
-        float y = -size, x = (float) Math.random() * (w + size * 1.5f) - size / 2;
+        if (w == 0 || h == 0) return;
+
+        float size = random.nextFloat() * (maxSnowflakeSize - minSnowflakeSize) + minSnowflakeSize;
+        float y = -size;
+        float x = random.nextFloat() * (w + size * 2) - size;
 
         snowflakes.add(new Snowflake(x, y, size));
     }
 
+
     private class Snowflake {
         private float x, y, size;
         private boolean visible;
+        private float speedX, speedY;
 
         public Snowflake(float x, float y, float size) {
             this.x = x;
             this.y = y;
             this.size = size;
-            visible = true;
+            this.visible = true;
+            this.speedY = 1 + random.nextFloat() * 3;
+            this.speedX = (random.nextFloat() - 0.5f) * 2;
         }
 
         public void draw(Canvas canvas) {
-            if (visible)
+            if (visible) {
                 canvas.drawRect(x, y, x + size, y + size, snowPaint);
+            }
         }
 
         public Event move() {
-            x += (float) Math.random() * size * ((int) (Math.random() * 2) == 0 ? 1 : -1);
-            y += (float) Math.random() * size;
+            if (!visible) return Event.DEFAULT;
+
+            y += speedY;
+            x += speedX;
+
+            if (y > h + size) {
+                visible = false;
+                return Event.REMOVE_EXPIRED;
+            }
+
+            if (x < -size) {
+                x = w + size;
+            } else if (x > w + size) {
+                x = -size;
+            }
 
             return Event.DEFAULT;
         }
     }
-}
 
+    public void clearSnowflakes() {
+        snowflakes.clear();
+        expiredSnowflakesIndexes.clear();
+        invalidate();
+    }
+
+    public void setMaxSnowflakesCount(int count) {
+        this.maxSnowflakesCount = Math.max(10, count);
+    }
+
+    public void setSnowflakeSize(float maxSize, float minSize) {
+        this.maxSnowflakeSize = maxSize;
+        this.minSnowflakeSize = minSize;
+    }
+
+    public void stopAnimation() {
+        if (timer != null) {
+            timer.cancel();
+        }
+    }
+}

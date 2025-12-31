@@ -6,6 +6,7 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
     <color name="dirty_white">#e6e6e6</color>
+    <color name="light_gray">#d6d4d4</color>
     <color name="blood_red">#d41717</color>
     <color name="golden_yellow">#d4cd17</color>
     <color name="fruit_orange">#fc7b03</color>
