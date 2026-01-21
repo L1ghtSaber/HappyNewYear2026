@@ -203,12 +203,6 @@ public class SnowfallView extends View {
         }
     }
 
-    public void clearSnowflakes() {
-        snowflakes.clear();
-        expiredSnowflakesIndexes.clear();
-        invalidate();
-    }
-
     public void setMaxSnowflakesCount(int count) {
         this.maxSnowflakesCount = Math.max(10, count);
     }

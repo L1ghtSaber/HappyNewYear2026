@@ -11,38 +11,34 @@ import android.view.MotionEvent;
 
 import androidx.core.content.ContextCompat;
 
+import java.util.ArrayList;
+import java.util.Random;
+
 public class Entity {
+    public static final float GRAVITY = 0.6f;
+    public static final float DEFAULT_SPEED_Y = -16f;
+    public static final float DEFAULT_SPEED_X = -8f;
+    public static final float FAST_SPEED_X = -16f;
+    public static final int DEFAULT_TICK_TIME = 100;
+
+    protected static final Random random = new Random();
+
     public enum Tag {
-        NONE, NEED_TO_REMOVE
+        NONE, NEED_TO_REMOVE, IRREMOVABLE
     }
 
     private float x, y;
     private float speedX, speedY;
     private RectF body;
     private Bitmap sprite;
-    private int[][] frames;
-    private int currentFrame;
-    private int tickTime = 100;
+    private Rect[][] frames;
+
+    private int currentFrameRow, currentFrameCol;
+    private int tickTime = DEFAULT_TICK_TIME;
     private Tag tag = Tag.NONE;
-
-    public Tag getTag() {
-        return tag;
-    }
-
-    public void setTag(Tag tag) {
-        this.tag = tag;
-    }
-
-    public long getLastFrameTime() {
-        return lastFrameTime;
-    }
-
-    public void setLastFrameTime(long lastFrameTime) {
-        this.lastFrameTime = lastFrameTime;
-    }
-
     private long lastFrameTime;
     private int frameWidth, frameHeight;
+    private int frameRowCount, frameColCount;
 
     public Entity(float x, float y) {
         this.x = x;
@@ -57,38 +53,50 @@ public class Entity {
     }
 
     public void draw(Canvas canvas) {
-        if (sprite == null || frames == null || frames.length == 0) return;
+        if (sprite == null || frames == null || frameRowCount == 0 || frameColCount == 0) return;
 
         if (tag == Tag.NEED_TO_REMOVE) return;
 
-        int row = frames[currentFrame][0];
-        int col = frames[currentFrame][1];
+        canvas.drawBitmap(sprite, frames[currentFrameRow][currentFrameCol], body, null);
 
-        canvas.drawBitmap(
-                sprite,
-                new Rect(col * frameWidth, row * frameHeight, col * frameWidth + frameWidth, row * frameHeight + frameHeight),
-                body, null
-        );
+        changeFrame();
     }
 
     public void move() {
         x += speedX;
         y += speedY;
+
+        if (x + frameWidth < 0) setTag(Tag.NEED_TO_REMOVE, false);
+
         updateBody();
-        changeFrame();
     }
 
     protected void changeFrame() {
         if (frames == null || frames.length == 0) return;
         long currentTime = System.currentTimeMillis();
         if (currentTime - lastFrameTime > tickTime) {
-            currentFrame = (currentFrame + 1) % frames.length;
+            currentFrameCol = (currentFrameCol + 1) % frameColCount;
             lastFrameTime = currentTime;
         }
     }
 
+    protected void changeFrameRow(int frameRow) {
+        currentFrameRow = frameRow % frameRowCount;
+    }
+
     protected void updateBody() {
         body.set(x, y, x + frameWidth, y + frameHeight);
+    }
+
+    protected void decodeBitmapToSprite(Context context, int resId) {
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inScaled = false;
+        Bitmap sprite = BitmapFactory.decodeResource(
+                context.getResources(),
+                resId,
+                options
+        );
+        setSprite(sprite);
     }
 
     public float getX() { return x; }
@@ -109,22 +117,37 @@ public class Entity {
     public float getSpeedY() { return speedY; }
     public void setSpeedY(float speedY) { this.speedY = speedY; }
 
+    public int getCurrentFrameRow() {
+        return currentFrameRow;
+    }
+
+    public int getCurrentFrameCol() {
+        return currentFrameCol;
+    }
+
     public RectF getBody() { return body; }
 
     public Bitmap getSprite() { return sprite; }
     public void setSprite(Bitmap sprite) { this.sprite = sprite; }
 
-    public int[][] getFrames() { return frames; }
-    public void setFrames(int[][] frames) {
-        this.frames = frames;
-        if (frames != null && frames.length > 0) {
-            currentFrame = 0;
-        }
-    }
+    public Rect[][] getFrames() { return frames; }
+    public void setFrames(int rowsCount, int colsCount) {
+        frames = new Rect[rowsCount][colsCount];
+        currentFrameCol = 0;
+        currentFrameRow = 0;
+        frameRowCount = rowsCount;
+        frameColCount = colsCount;
 
-    public int getCurrentFrame() { return currentFrame; }
-    public void setCurrentFrame(int currentFrame) {
-        this.currentFrame = currentFrame;
+        if (sprite == null) return;
+
+        setFrameHeight(sprite.getHeight() / rowsCount);
+        setFrameWidth(sprite.getWidth() / colsCount);
+
+        for (int i = 0; i < rowsCount; i++) {
+            for (int j = 0; j < colsCount; j++) {
+                frames[i][j] = new Rect(j * frameWidth, i * frameHeight, (j + 1) * frameWidth, (i + 1) * frameHeight);
+            }
+        }
     }
 
     public int getTickTime() { return tickTime; }
@@ -142,15 +165,42 @@ public class Entity {
         updateBody();
     }
 
+    public Tag getTag() {
+        return tag;
+    }
+
+    public void setTag(Tag tag, boolean forced) {
+        if (this.tag == Tag.IRREMOVABLE && !forced) return;
+
+        this.tag = tag;
+    }
+
+    public long getLastFrameTime() {
+        return lastFrameTime;
+    }
+
+    public void setLastFrameTime(long lastFrameTime) {
+        this.lastFrameTime = lastFrameTime;
+    }
+
+    public int getFrameRowCount() {
+        return frameRowCount;
+    }
+
+    public int getFrameColCount() {
+        return frameColCount;
+    }
+
     public static class Snowdrift extends Entity {
 
-        private Paint snowPaint;
+        private final Paint snowPaint;
 
         public Snowdrift(float x, float y, int width, int height, Context context) {
             super(x, y);
 
             setFrameWidth(width);
             setFrameHeight(height);
+            setSpeedX(DEFAULT_SPEED_X);
             updateBody();
 
             snowPaint = new Paint();
@@ -165,12 +215,34 @@ public class Entity {
             canvas.drawRect(getBody(), snowPaint);
         }
 
+        public static Snowdrift generateSnowdrift(Context context, float x, float groundLevel, int minWidth, int maxWidth, int minHeight, int maxHeight) {
+            x += minWidth / (random.nextInt(2) + 1.f);
+            int width = minWidth + random.nextInt(maxWidth - minWidth);
+            int height = minHeight + random.nextInt(maxHeight - minHeight);
+            float y = groundLevel - height;
+            return new Entity.Snowdrift(x, y, width, height, context);
+        }
+
+        public static ArrayList<Snowdrift> generateSnowdrifts(Context context, int count, int fieldWidth, float groundLevel,
+                                                   int minWidth, int maxWidth,
+                                                   int minHeight, int maxHeight) {
+            ArrayList<Snowdrift> snowdrifts = new ArrayList<>();
+
+            for (int i = 0; i < count; i++) {
+                float x = ((float) fieldWidth / (count + 1)) * i;
+
+                snowdrifts.add(generateSnowdrift(context, x, groundLevel, minWidth, maxWidth, minHeight, maxHeight));
+            }
+
+            return snowdrifts;
+        }
+
     }
 
     public static class Horse extends Entity {
 
-        private static final int FRAME_WIDTH = 56*4;
-        private static final int FRAME_HEIGHT = 32*4;
+//        private static final int FRAME_WIDTH = 56*4;
+//        private static final int FRAME_HEIGHT = 32*4;
 
         public enum State {
             NORMAL_RUN,
@@ -179,17 +251,13 @@ public class Entity {
             FIRE_JUMP
         }
 
-        private static final float GRAVITY = 0.5f;
-        private static final float JUMP_FORCE = -15f;
-        private static final float MAX_JUMP_HOLD = 500f;
-        private static final float MAX_ADDITIONAL_FORCE = -5f;
-        private static final int FRAMES_PER_ROW = 5;
+        private static final int MAX_JUMP_HOLD = 500;
 
         private State currentState;
         private boolean isJumping;
         private float groundY;
         private long jumpStartTime;
-        private boolean jumpButtonPressed;
+        private boolean jumpPressed;
 
         private boolean isUpdatable;
 
@@ -197,44 +265,25 @@ public class Entity {
         private long fireModeStartTime;
         private long fireModeDuration = 3000;
 
+        private final float minJumpHeight;
+
         public Horse(float x, float groundY, Context context) {
-            super(x, groundY - FRAME_HEIGHT);
+            super(x, 0);
             this.groundY = groundY;
             this.currentState = State.NORMAL_RUN;
             this.isJumping = false;
             this.isFireMode = false;
             this.isUpdatable = true;
 
-            BitmapFactory.Options options = new BitmapFactory.Options();
-            options.inScaled = false;
-            Bitmap sprite = BitmapFactory.decodeResource(
-                    context.getResources(),
-                    R.drawable.horse_sprite,
-                    options
-            );
-            setSprite(sprite);
+            decodeBitmapToSprite(context, R.drawable.horse_sprite);
 
-            setFrameWidth(FRAME_WIDTH);
-            setFrameHeight(FRAME_HEIGHT);
+//            setFrameWidth(FRAME_WIDTH);
+//            setFrameHeight(FRAME_HEIGHT);
 
-            int length = FRAMES_PER_ROW * State.values().length;
-            setFrames(new int[length][2]);
-            for (int i = 0; i < length; i++) {
-                getFrames()[i][0] = i / 5;
-                getFrames()[i][1] = i % 5;
-            }
+            setFrames(State.values().length, 5);
+            setY(groundY - getFrameHeight());
 
-            setTickTime(100);
-        }
-
-        @Override
-        protected void changeFrame() {
-            if (getFrames() == null || getFrames().length == 0) return;
-            long currentTime = System.currentTimeMillis();
-            if (currentTime - getLastFrameTime() > getTickTime()) {
-                setCurrentFrame((getCurrentFrame() + 1) % FRAMES_PER_ROW + FRAMES_PER_ROW * currentState.ordinal());
-                setLastFrameTime(currentTime);
-            }
+            minJumpHeight = getFrameHeight();
         }
 
         @Override
@@ -243,47 +292,36 @@ public class Entity {
 
             updateFireMode();
 
-            if (isJumping) {
-                setSpeedY(getSpeedY() + GRAVITY);
-            }
+            if (isJumping) setSpeedY(getSpeedY() + GRAVITY);
 
-            if (getY() >= groundY - getFrameHeight()) {
+            if (getY() > groundY - getFrameHeight()) {
                 setY(groundY - getFrameHeight());
                 setSpeedY(0);
                 isJumping = false;
 
-                if (!jumpButtonPressed) {
-                    updateState();
-                }
+                updateState();
             }
 
-            if (jumpButtonPressed && !isJumping) {
-                startJump();
-            }
+            if (jumpPressed && !isJumping) startJump();
 
-            if (isJumping && jumpButtonPressed) {
-                applyAdditionalJumpForce();
-            }
+            if (isJumping && jumpPressed) applyAdditionalJumpHeight();
         }
 
         private void startJump() {
             isJumping = true;
 
-            setSpeedY(JUMP_FORCE);
-            jumpStartTime = System.currentTimeMillis();
+            setSpeedY(DEFAULT_SPEED_Y);
 
+            jumpStartTime = System.currentTimeMillis();
             updateState();
         }
 
-        private void applyAdditionalJumpForce() {
+        private void applyAdditionalJumpHeight() {
             long currentTime = System.currentTimeMillis();
             long holdTime = currentTime - jumpStartTime;
 
-            if (holdTime < MAX_JUMP_HOLD && getSpeedY() < 0) {
-                float progress = (float) holdTime / MAX_JUMP_HOLD;
-                float additionalForce = MAX_ADDITIONAL_FORCE * progress;
-                setSpeedY(getSpeedY() + additionalForce);
-            }
+            if (holdTime < MAX_JUMP_HOLD)
+                setSpeedY(-(float) Math.sqrt(2 * GRAVITY * minJumpHeight));
         }
 
         private void updateState() {
@@ -300,6 +338,8 @@ public class Entity {
             if (currentState != newState) {
                 currentState = newState;
             }
+
+            changeFrameRow(currentState.ordinal());
         }
 
         private void updateFireMode() {
@@ -315,10 +355,10 @@ public class Entity {
         public boolean onTouchEvent(MotionEvent event) {
             switch (event.getAction()) {
                 case MotionEvent.ACTION_DOWN:
-                    jumpButtonPressed = true;
+                    jumpPressed = true;
                     return true;
                 case MotionEvent.ACTION_UP:
-                    jumpButtonPressed = false;
+                    jumpPressed = false;
                     return true;
             }
             return false;
@@ -346,6 +386,7 @@ public class Entity {
 
         public void setCurrentState(State currentState) {
             this.currentState = currentState;
+            changeFrameRow(currentState.ordinal());
         }
 
         public boolean isUpdatable() {
@@ -368,142 +409,163 @@ public class Entity {
             setSpeedY(0);
             isJumping = false;
             isFireMode = false;
-            jumpButtonPressed = false;
+            jumpPressed = false;
             updateState();
         }
     }
 
-//    public static class Candy extends Entity {
-//        public enum Type {
-//            CANDY1, CANDY2, CANDY3
-//        }
-//
-//        private Type type;
-//        private boolean collected;
-//
-//        public Candy(float x, float y, Type type, Context context) {
-//            super(x, y);
-//            this.type = type;
-//            this.collected = false;
-//
-//            int resId = 0;
-////            switch (type) {
-////                case CANDY2:
-////                    resId = R.drawable.candy2;
-////                    break;
-////                case CANDY3:
-////                    resId = R.drawable.candy3;
-////                    break;
-////                default:
-////                    resId = R.drawable.candy1;
-////                    break;
-////            }
-//
-//            BitmapFactory.Options options = new BitmapFactory.Options();
-//            options.inScaled = false;
-//            Bitmap sprite = BitmapFactory.decodeResource(
-//                    context.getResources(),
-//                    resId,
-//                    options
-//            );
-//            setSprite(sprite);
-//            setFrameWidth(sprite.getWidth());
-//            setFrameHeight(sprite.getHeight());
-//            setFrames(new int[][]{{0, 0}});
-//        }
-//
-//        public Type getType() {
-//            return type;
-//        }
-//
-//        public boolean isCollected() {
-//            return collected;
-//        }
-//
-//        public void setCollected(boolean collected) {
-//            this.collected = collected;
-//        }
-//
-//        public boolean collideWithHorse(Horse horse) {
-//            if (!collected && collidesWith(horse)) {
-//                collected = true;
-//                horse.activateFireMode();
-//                setTag(Tag.NEED_TO_REMOVE);
-//                return true;
-//            }
-//            return false;
-//        }
-//    }
+    public static class Candy extends Entity implements Collidable {
+        public enum Type {
+            CANDY1, CANDY2, CANDY3
+        }
 
-//    public static class Obstacle extends Entity {
-//        public enum Type {
-//            GIFT, TALL_GIFT, SNOWBALL
-//        }
-//
-//        private Type type;
-//        private boolean passed;
-//
-//        public Obstacle(float x, float y, Type type, Context context) {
-//            super(x, y);
-//            this.type = type;
-//            this.passed = false;
-//
-//            int resId = 0;
-////            switch (type) {
-////                case TALL_GIFT:
-////                    resId = R.drawable.tall_gift;
-////                    setSpeedX(-8.0f);
-////                    break;
-////                case SNOWBALL:
-////                    resId = R.drawable.snowball;
-////                    setSpeedX(-14.0f);
-////                    break;
-////                default:
-////                    resId = R.drawable.gift;
-////                    setSpeedX(-8.0f);
-////                    break;
-////            }
-//
-//            BitmapFactory.Options options = new BitmapFactory.Options();
-//            options.inScaled = false;
-//            Bitmap sprite = BitmapFactory.decodeResource(
-//                    context.getResources(),
-//                    resId,
-//                    options
-//            );
-//            setSprite(sprite);
-//            setFrameWidth(sprite.getWidth());
-//            setFrameHeight(sprite.getHeight());
-//            setFrames(new int[][]{{0, 0}});
-//        }
-//
-//        public Type getType() {
-//            return type;
-//        }
-//
-//        public boolean isPassed() {
-//            return passed;
-//        }
-//
-//        public void setPassed(boolean passed) {
-//            this.passed = passed;
-//        }
-//
-//        public boolean collideWithHorse(Horse horse) {
-//            if (getBody().intersect(horse.getBody())) {
-//                if (!horse.isInFireMode()) {
+        private Type type;
+        private boolean collected;
+
+        public Candy(float x, float groundY, Type type, Context context) {
+            super(x, 0);
+            this.type = type;
+            this.collected = false;
+
+            int resId;
+            switch (type) {
+                case CANDY2:
+                    resId = R.drawable.candy2;
+                    break;
+                case CANDY3:
+                    resId = R.drawable.candy3;
+                    break;
+                default:
+                    resId = R.drawable.candy1;
+                    break;
+            }
+
+            decodeBitmapToSprite(context, resId);
+
+            setFrames(1, 1);
+
+            setY(groundY - getFrameHeight());
+        }
+
+        public Type getType() {
+            return type;
+        }
+
+        public boolean isCollected() {
+            return collected;
+        }
+
+        @Override
+        public boolean collidesWithHorse(Horse horse) {
+            if (!collected && collidesWith(horse)) {
+                collected = true;
+                horse.activateFireMode();
+                setTag(Tag.NEED_TO_REMOVE, false);
+                return true;
+            }
+            return false;
+        }
+    }
+
+    public static class Obstacle extends Entity implements Collidable {
+
+        public enum Type {
+            GIFT, TALL_GIFT, SNOWBALL
+        }
+
+        private Type type;
+
+        public Obstacle(float x, float groundY, Type type, Context context) {
+            super(x, 0);
+            this.type = type;
+
+            int resId;
+            switch (type) {
+                case TALL_GIFT:
+                    resId = R.drawable.tall_gift;
+                    setSpeedX(DEFAULT_SPEED_X);
+                    break;
+                case SNOWBALL:
+                    resId = R.drawable.snowball;
+                    setSpeedX(FAST_SPEED_X);
+                    break;
+                default:
+                    resId = R.drawable.gift;
+                    setSpeedX(DEFAULT_SPEED_X);
+                    break;
+            }
+
+            decodeBitmapToSprite(context, resId);
+
+            setFrames(1, 1);
+
+            setY(groundY - getFrameHeight());
+        }
+
+        public Type getType() {
+            return type;
+        }
+
+        @Override
+        public boolean collidesWithHorse(Horse horse) {
+            if (collidesWith(horse)) {
+                if (horse.isInFireMode()) {
+                    setTag(Tag.NEED_TO_REMOVE, false);
+                }
+                else {
 //                    horse.setUpdatable(false);
-//                }
-//                return true;
-//            }
-//            return false;
-//        }
-//
-//        @Override
-//        public void move() {
-//            super.move();
-//            if (getX() + getFrameWidth() < 0) {
-//            }
-//        }
-//    }
+//                    horse.setTag(Tag.NEED_TO_REMOVE, false);
+                }
+                return true;
+            }
+
+            return false;
+        }
+    }
+
+    public static class Snowman extends Entity implements Collidable {
+
+        public Snowman(float x, float groundY, Context context) {
+            super(x, 0);
+
+            setSpeedX(DEFAULT_SPEED_X);
+
+            decodeBitmapToSprite(context, R.drawable.snowman);
+
+            setFrames(1, 1);
+
+            setY(groundY - getFrameHeight());
+        }
+
+        public Obstacle spawnSnowball(Context context) {
+            return new Obstacle(getX(), getY() + getFrameHeight() * 0.5f, Obstacle.Type.SNOWBALL, context);
+        }
+
+        @Override
+        public boolean collidesWithHorse(Horse horse) {
+            if (collidesWith(horse)) {
+                if (horse.isInFireMode()) {
+                    setTag(Tag.NEED_TO_REMOVE, false);
+                }
+                else {
+                    if (horse.isJumping()) {
+                        if (horse.getBody().bottom < getBody().top + getBody().width() / 8) {
+                            setTag(Tag.NEED_TO_REMOVE, false);
+                        }
+                        else {
+//                          horse.setUpdatable(false);
+//                          horse.setTag(Tag.NEED_TO_REMOVE, false);
+                        }
+                    }
+                }
+                return true;
+            }
+
+            return false;
+        }
+    }
+
+    public interface Collidable {
+        boolean collidesWithHorse(Horse horse);
+    }
 }

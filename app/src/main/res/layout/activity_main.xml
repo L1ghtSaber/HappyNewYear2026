@@ -132,6 +132,7 @@
             android:layout_height="match_parent"/>
 
         <TextView
+            android:id="@+id/play_TV"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:fontFamily="@font/font_8_bit"
@@ -140,8 +141,7 @@
             android:textColor="@color/dirty_white"
             android:textSize="30sp"
             android:layout_gravity="center"
-            android:gravity="center"
-            android:onClick="play"/>
+            android:gravity="center"/>
 
     </FrameLayout>
 
@@ -160,6 +160,7 @@
             android:layout_height="match_parent"/>
 
         <TextView
+            android:id="@+id/open_congrats_TV"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:fontFamily="@font/font_8_bit"
@@ -168,8 +169,7 @@
             android:textColor="@color/dirty_white"
             android:textSize="20sp"
             android:layout_gravity="center"
-            android:gravity="center"
-            android:onClick="openCongrats"/>
+            android:gravity="center"/>
 
     </FrameLayout>
 

@@ -4,10 +4,11 @@ import android.content.Context;
 import android.util.AttributeSet;
 import android.widget.FrameLayout;
 import java.util.HashMap;
+import java.util.TreeMap;
 
 public class FlameDigitView extends FrameLayout {
 
-    private HashMap<Integer, boolean[]> digitPatterns;
+    private boolean[][] digitPatterns;
     private FlameRectangleView[] segments;
     private int currentDigit = -1;
 
@@ -27,29 +28,28 @@ public class FlameDigitView extends FrameLayout {
     }
 
     private void init(Context context) {
-        // Инициализация паттернов цифр
-        digitPatterns = new HashMap<>();
+        digitPatterns = new boolean[10][7];
 
-        // 0: 0,1,2,4,5,6
-        digitPatterns.put(0, new boolean[]{true, true, true, false, true, true, true});
-        // 1: 2,5
-        digitPatterns.put(1, new boolean[]{false, false, true, false, false, true, false});
-        // 2: 0,2,3,4,6
-        digitPatterns.put(2, new boolean[]{true, false, true, true, true, false, true});
-        // 3: 0,2,3,5,6
-        digitPatterns.put(3, new boolean[]{true, false, true, true, false, true, true});
-        // 4: 1,2,3,5
-        digitPatterns.put(4, new boolean[]{false, true, true, true, false, true, false});
-        // 5: 0,1,3,5,6
-        digitPatterns.put(5, new boolean[]{true, true, false, true, false, true, true});
-        // 6: 0,1,3,4,5,6
-        digitPatterns.put(6, new boolean[]{true, true, false, true, true, true, true});
-        // 7: 0,2,5
-        digitPatterns.put(7, new boolean[]{true, false, true, false, false, true, false});
-        // 8: все сегменты
-        digitPatterns.put(8, new boolean[]{true, true, true, true, true, true, true});
-        // 9: 0,1,2,3,5,6
-        digitPatterns.put(9, new boolean[]{true, true, true, true, false, true, true});
+        // 0: 012456
+        digitPatterns[0] = new boolean[]{true, true, true, false, true, true, true};
+        // 1: 25
+        digitPatterns[1] = new boolean[]{false, false, true, false, false, true, false};
+        // 2: 02346
+        digitPatterns[2] = new boolean[]{true, false, true, true, true, false, true};
+        // 3: 02356
+        digitPatterns[3] = new boolean[]{true, false, true, true, false, true, true};
+        // 4: 1235
+        digitPatterns[4] = new boolean[]{false, true, true, true, false, true, false};
+        // 5: 01356
+        digitPatterns[5] = new boolean[]{true, true, false, true, false, true, true};
+        // 6: 013456
+        digitPatterns[6] = new boolean[]{true, true, false, true, true, true, true};
+        // 7: 025
+        digitPatterns[7] = new boolean[]{true, false, true, false, false, true, false};
+        // 8: 0123456
+        digitPatterns[8] = new boolean[]{true, true, true, true, true, true, true};
+        // 9: 012356
+        digitPatterns[9] = new boolean[]{true, true, true, true, false, true, true};
 
         segments = new FlameRectangleView[7];
         for (int i = 0; i < 7; i++) {
@@ -172,14 +172,10 @@ public class FlameDigitView extends FrameLayout {
     }
 
     public void setDigit(int digit) {
-        if (digit < 0 || digit > 9) {
-            throw new IllegalArgumentException("Digit must be between 0 and 9");
-        }
-
-        if (currentDigit == digit) return;
+        if (digit < 0 || digit > 9 || currentDigit == digit) return;
 
         currentDigit = digit;
-        boolean[] pattern = digitPatterns.get(digit);
+        boolean[] pattern = digitPatterns[digit];
 
         for (int i = 0; i < 7; i++) {
             segments[i].setVisibility(pattern[i] ? VISIBLE : INVISIBLE);
@@ -191,14 +187,14 @@ public class FlameDigitView extends FrameLayout {
     }
 
     public void setSecondaryRectSpeed(float speed) {
-        for (FlameRectangleView segment : segments) {
-            segment.setSecondaryRectSpeed(speed);
+        for (int i = 0; i < segments.length; i++) {
+            segments[i].setSecondaryRectSpeed(speed);
         }
     }
 
     public void setSecondaryRectSideFactor(float factor) {
-        for (FlameRectangleView segment : segments) {
-            segment.setSecondaryRectSideFactor(factor);
+        for (int i = 0; i < segments.length; i++) {
+            segments[i].setSecondaryRectSideFactor(factor);
         }
     }
 }

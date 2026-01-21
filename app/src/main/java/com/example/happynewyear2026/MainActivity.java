@@ -9,6 +9,7 @@ import android.os.Bundle;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.widget.TextView;
 import android.widget.Toast;
 
 public class MainActivity extends AppCompatActivity {
@@ -17,6 +18,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int CONGRATS_ACTIVITY = 1;
 
     private FlameDigitView first, second, third, fourth;
+    private TextView play, openCongrats;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -33,18 +35,30 @@ public class MainActivity extends AppCompatActivity {
         second = findViewById(R.id.second_FDV);
         third = findViewById(R.id.third_FDV);
         fourth = findViewById(R.id.fourth_FDV);
+        play = findViewById(R.id.play_TV);
+        openCongrats = findViewById(R.id.open_congrats_TV);
 
         first.setDigit(2);
         second.setDigit(0);
         third.setDigit(2);
         fourth.setDigit(6);
-    }
 
-    public void play(View view) {
-        Toast.makeText(this, "Игра пока не готова =(", Toast.LENGTH_LONG).show();
+        play.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+//              Toast.makeText(this, "Игра пока не готова =(", Toast.LENGTH_LONG).show();
 
-//        Intent gameActivity = new Intent();
-//        startActivityForResult(gameActivity, GAME_ACTIVITY);
+                Intent gameActivity = new Intent(MainActivity.this, GameActivity.class);
+                startActivityForResult(gameActivity, GAME_ACTIVITY);
+            }
+        });
+        openCongrats.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Intent congratsActivity = new Intent(MainActivity.this, CongratsActivity.class);
+                startActivityForResult(congratsActivity, CONGRATS_ACTIVITY);
+            }
+        });
     }
 
     @Override
@@ -56,10 +70,5 @@ public class MainActivity extends AppCompatActivity {
             case CONGRATS_ACTIVITY:
                 break;
         }
-    }
-
-    public void openCongrats(View view) {
-        Intent congratsActivity = new Intent(MainActivity.this, CongratsActivity.class);
-        startActivityForResult(congratsActivity, CONGRATS_ACTIVITY);
     }
 }

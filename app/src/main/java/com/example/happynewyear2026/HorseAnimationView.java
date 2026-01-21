@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.Rect;
 import android.graphics.RectF;
 import android.os.Build;
 import android.util.AttributeSet;
@@ -14,14 +15,15 @@ import androidx.core.content.ContextCompat;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Random;
 
 public class HorseAnimationView extends View {
     private Entity.Horse horse;
     private float horseSpeed = 4f;
-    private final float defaultX = -2000;
+    private final float DEFAULT_X = -2000;
 
-    private Entity.Snowdrift[] snowdrifts;
+    private ArrayList<Entity.Snowdrift> snowdrifts;
     private int snowdriftCount = 10;
     private float groundLevel;
 
@@ -37,8 +39,6 @@ public class HorseAnimationView extends View {
     private long lastUpdateTime;
 
     private int w, h;
-
-    private Random random = new Random();
 
     public HorseAnimationView(Context context) {
         super(context);
@@ -81,11 +81,12 @@ public class HorseAnimationView extends View {
         groundLevel = h * 0.8f;
 
         horse = new Entity.Horse(
-                -1000,
+                DEFAULT_X,
                 groundLevel,
                 getContext()
         );
         horse.setUpdatable(false);
+        horse.setTag(Entity.Tag.IRREMOVABLE, true);
         setTextBubble();
 
         horse.setSpeedX(horseSpeed);
@@ -99,24 +100,11 @@ public class HorseAnimationView extends View {
     }
 
     private void createSnowdrifts() {
-        snowdrifts = new Entity.Snowdrift[snowdriftCount];
+        int horseWidth = horse.getFrameWidth(), horseHeight = horse.getFrameHeight();
 
-        int maxSnowdriftWidth = w / 6,
-                minSnowdriftWidth = w / 10,
-                snowdriftHeight = h / 40;
-
-        for (int i = 0; i < snowdriftCount; i++) {
-            float x = ((float) w / (snowdriftCount + 1)) * (i + 1);
-            x -= minSnowdriftWidth / 2.0f;
-            x += random.nextInt(50) - 25;
-            int width = minSnowdriftWidth + random.nextInt(maxSnowdriftWidth - minSnowdriftWidth);
-            int height = snowdriftHeight + random.nextInt(snowdriftHeight / 2);
-            float y = groundLevel - height;
-
-            snowdrifts[i] = new Entity.Snowdrift(
-                    x, y, width, height, getContext()
-            );
-        }
+        snowdrifts = Entity.Snowdrift.generateSnowdrifts(getContext(), snowdriftCount, w, groundLevel,
+                horseWidth / 2, horseWidth,
+                0, horseHeight / 8);
     }
 
     @Override
@@ -127,7 +115,7 @@ public class HorseAnimationView extends View {
 
         horse.draw(canvas);
 
-        for (int i = 0; i < snowdriftCount; i++) snowdrifts[i].draw(canvas);
+        for (int i = 0; i < snowdriftCount; i++) snowdrifts.get(i).draw(canvas);
 
         drawTextBubble(canvas);
 
@@ -196,7 +184,7 @@ public class HorseAnimationView extends View {
                 horse.move();
 
                 if (horse.getX() > w) {
-                    horse.setX(defaultX);
+                    horse.setX(DEFAULT_X);
                 }
 
                 setTextBubble();
@@ -261,20 +249,5 @@ public class HorseAnimationView extends View {
             createSnowdrifts();
             invalidate();
         }
-    }
-
-    public int getSnowdriftCount() {
-        return snowdriftCount;
-    }
-
-    public void reset() {
-        if (horse != null) {
-            horse.setX(-horse.getFrameWidth());
-            horse.setY(groundLevel - horse.getFrameHeight());
-            horse.setSpeedX(horseSpeed);
-            horse.setSpeedY(0);
-            horse.reset();
-        }
-        invalidate();
     }
 }
