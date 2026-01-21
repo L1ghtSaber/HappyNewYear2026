@@ -215,7 +215,7 @@ public class GameActivity extends AppCompatActivity implements GameEndListener {
             protected void onSizeChanged(int w, int h, int oldw, int oldh) {
                 Game.w = w;
                 Game.h = h;
-                Game.groundLevel = h * 0.6f;
+                Game.groundLevel = h * 0.7f;
                 setGroundRect();
             }
 

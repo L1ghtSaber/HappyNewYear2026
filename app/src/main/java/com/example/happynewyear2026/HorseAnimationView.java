@@ -205,8 +205,8 @@ public class HorseAnimationView extends View {
 
     private void setTextBubble() {
         float x = horse.getX(), width = horse.getFrameWidth(),
-                y = horse.getY(), height = horse.getFrameHeight();
-        textBubble.set(x + width, y - height * 2, x + width * 3, y);
+                y = horse.getY(), height = horse.getFrameHeight() / 1.5f;
+        textBubble.set(x + width, y - height * 2, x + width * 2.5f, y);
     }
 
     public void startAnimation() {

@@ -17,8 +17,8 @@ import java.util.Random;
 public class Entity {
     public static final float GRAVITY = 0.6f;
     public static final float DEFAULT_SPEED_Y = -16f;
-    public static final float DEFAULT_SPEED_X = -8f;
-    public static final float FAST_SPEED_X = -16f;
+    public static final float DEFAULT_SPEED_X = -16f;
+    public static final float FAST_SPEED_X = -24f;
     public static final int DEFAULT_TICK_TIME = 100;
 
     protected static final Random random = new Random();
