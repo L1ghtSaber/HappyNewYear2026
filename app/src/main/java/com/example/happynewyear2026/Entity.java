@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.RectF;
@@ -15,10 +16,10 @@ import java.util.ArrayList;
 import java.util.Random;
 
 public class Entity {
-    public static final float GRAVITY = 0.6f;
+    public static final float GRAVITY = 1f;
     public static final float DEFAULT_SPEED_Y = -16f;
     public static final float DEFAULT_SPEED_X = -16f;
-    public static final float FAST_SPEED_X = -24f;
+    public static final float FAST_SPEED_X = -32f;
     public static final int DEFAULT_TICK_TIME = 100;
 
     protected static final Random random = new Random();
@@ -29,9 +30,12 @@ public class Entity {
 
     private float x, y;
     private float speedX, speedY;
-    private RectF body;
+    private RectF bodyDraw, bodyCollide;
+
+    private float[] paddingCollide;
     private Bitmap sprite;
     private Rect[][] frames;
+    private Paint paintCollider;
 
     private int currentFrameRow, currentFrameCol;
     private int tickTime = DEFAULT_TICK_TIME;
@@ -40,26 +44,34 @@ public class Entity {
     private int frameWidth, frameHeight;
     private int frameRowCount, frameColCount;
 
-    public Entity(float x, float y) {
+    public Entity(float x, float y, float[] paddingCollide) {
         this.x = x;
         this.y = y;
-        body = new RectF();
+        bodyDraw = new RectF();
+        bodyCollide = new RectF();
+        this.paddingCollide = paddingCollide;
         updateBody();
         lastFrameTime = System.currentTimeMillis();
+
+        paintCollider = new Paint();
+        paintCollider.setColor(Color.GREEN);
+        paintCollider.setStyle(Paint.Style.STROKE);
+        paintCollider.setStrokeWidth(1);
     }
 
     public boolean collidesWith(Entity other) {
-        return RectF.intersects(this.getBody(), other.getBody());
+        return RectF.intersects(this.getBodyCollide(), other.getBodyCollide());
     }
 
-    public void draw(Canvas canvas) {
+    public void draw(Canvas canvas, boolean changeFrame) {
         if (sprite == null || frames == null || frameRowCount == 0 || frameColCount == 0) return;
 
-        if (tag == Tag.NEED_TO_REMOVE) return;
+        //if (tag == Tag.NEED_TO_REMOVE) return;
 
-        canvas.drawBitmap(sprite, frames[currentFrameRow][currentFrameCol], body, null);
+        canvas.drawBitmap(sprite, frames[currentFrameRow][currentFrameCol], bodyDraw, null);
+        //canvas.drawRect(bodyCollide, paintCollider);
 
-        changeFrame();
+        if (changeFrame) changeFrame();
     }
 
     public void move() {
@@ -85,18 +97,28 @@ public class Entity {
     }
 
     protected void updateBody() {
-        body.set(x, y, x + frameWidth, y + frameHeight);
+        bodyDraw.set(x, y, x + frameWidth, y + frameHeight);
+        if (paddingCollide == null) bodyCollide.set(bodyDraw);
+        else {
+            float l = bodyDraw.left, r = bodyDraw.right, t = bodyDraw.top, b = bodyDraw.bottom,
+                    h = bodyDraw.height(), w = bodyDraw.width();
+            bodyCollide.set(l + w * paddingCollide[0], t + h * paddingCollide[1],
+                    r - w * paddingCollide[2], b - h * paddingCollide[3]);
+        }
     }
 
-    protected void decodeBitmapToSprite(Context context, int resId) {
+    public static Bitmap decodeBitmap(Context context, int resId) {
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inScaled = false;
-        Bitmap sprite = BitmapFactory.decodeResource(
+        return BitmapFactory.decodeResource(
                 context.getResources(),
                 resId,
                 options
         );
-        setSprite(sprite);
+    }
+
+    protected void decodeBitmapToSprite(Context context, int resId) {
+        setSprite(decodeBitmap(context, resId));
     }
 
     public float getX() { return x; }
@@ -125,7 +147,18 @@ public class Entity {
         return currentFrameCol;
     }
 
-    public RectF getBody() { return body; }
+    public RectF getBodyDraw() { return bodyDraw; }
+
+    public RectF getBodyCollide() { return bodyCollide; }
+
+    public float[] getPaddingCollide() {
+        return paddingCollide;
+    }
+
+    public void setPaddingCollide(float[] paddingCollide) {
+        this.paddingCollide = paddingCollide;
+        updateBody();
+    }
 
     public Bitmap getSprite() { return sprite; }
     public void setSprite(Bitmap sprite) { this.sprite = sprite; }
@@ -196,7 +229,7 @@ public class Entity {
         private final Paint snowPaint;
 
         public Snowdrift(float x, float y, int width, int height, Context context) {
-            super(x, y);
+            super(x, y, null);
 
             setFrameWidth(width);
             setFrameHeight(height);
@@ -209,10 +242,10 @@ public class Entity {
         }
 
         @Override
-        public void draw(Canvas canvas) {
+        public void draw(Canvas canvas, boolean changeFrame) {
             if (getTag() == Tag.NEED_TO_REMOVE) return;
 
-            canvas.drawRect(getBody(), snowPaint);
+            canvas.drawRect(getBodyDraw(), snowPaint);
         }
 
         public static Snowdrift generateSnowdrift(Context context, float x, float groundLevel, int minWidth, int maxWidth, int minHeight, int maxHeight) {
@@ -252,6 +285,7 @@ public class Entity {
         }
 
         private static final int MAX_JUMP_HOLD = 500;
+        private static final long FIRE_MODE_DURATION = 3000;
 
         private State currentState;
         private boolean isJumping;
@@ -263,12 +297,11 @@ public class Entity {
 
         private boolean isFireMode;
         private long fireModeStartTime;
-        private long fireModeDuration = 3000;
 
         private final float minJumpHeight;
 
         public Horse(float x, float groundY, Context context) {
-            super(x, 0);
+            super(x, 0, null);
             this.groundY = groundY;
             this.currentState = State.NORMAL_RUN;
             this.isJumping = false;
@@ -284,6 +317,10 @@ public class Entity {
             setY(groundY - getFrameHeight());
 
             minJumpHeight = getFrameHeight();
+        }
+
+        public static long getFireModeDuration() {
+            return FIRE_MODE_DURATION;
         }
 
         @Override
@@ -321,7 +358,7 @@ public class Entity {
             long holdTime = currentTime - jumpStartTime;
 
             if (holdTime < MAX_JUMP_HOLD)
-                setSpeedY(-(float) Math.sqrt(2 * GRAVITY * minJumpHeight));
+                setSpeedY(-(float) Math.sqrt(GRAVITY * minJumpHeight));
         }
 
         private void updateState() {
@@ -345,7 +382,7 @@ public class Entity {
         private void updateFireMode() {
             if (isFireMode) {
                 long currentTime = System.currentTimeMillis();
-                if (currentTime - fireModeStartTime > fireModeDuration) {
+                if (currentTime - fireModeStartTime > FIRE_MODE_DURATION) {
                     isFireMode = false;
                     updateState();
                 }
@@ -423,9 +460,10 @@ public class Entity {
         private boolean collected;
 
         public Candy(float x, float groundY, Type type, Context context) {
-            super(x, 0);
+            super(x, 0,new float[]{0.1f, 0.1f, 0.1f, 0.0f});
             this.type = type;
             this.collected = false;
+            setSpeedX(DEFAULT_SPEED_X);
 
             int resId;
             switch (type) {
@@ -457,6 +495,7 @@ public class Entity {
 
         @Override
         public boolean collidesWithHorse(Horse horse) {
+            if (getTag() == Tag.NEED_TO_REMOVE) return false;
             if (!collected && collidesWith(horse)) {
                 collected = true;
                 horse.activateFireMode();
@@ -476,7 +515,7 @@ public class Entity {
         private Type type;
 
         public Obstacle(float x, float groundY, Type type, Context context) {
-            super(x, 0);
+            super(x, 0, null);
             this.type = type;
 
             int resId;
@@ -484,14 +523,17 @@ public class Entity {
                 case TALL_GIFT:
                     resId = R.drawable.tall_gift;
                     setSpeedX(DEFAULT_SPEED_X);
+                    setPaddingCollide(new float[]{0.1f, 0.1f, 0.1f, 0.0f});
                     break;
                 case SNOWBALL:
                     resId = R.drawable.snowball;
                     setSpeedX(FAST_SPEED_X);
+                    setPaddingCollide(new float[]{0.1f, 0.1f, 0.1f, 0.1f});
                     break;
                 default:
                     resId = R.drawable.gift;
                     setSpeedX(DEFAULT_SPEED_X);
+                    setPaddingCollide(new float[]{0.1f, 0.2f, 0.1f, 0.0f});
                     break;
             }
 
@@ -508,13 +550,15 @@ public class Entity {
 
         @Override
         public boolean collidesWithHorse(Horse horse) {
+            if (getTag() == Tag.NEED_TO_REMOVE) return false;
             if (collidesWith(horse)) {
                 if (horse.isInFireMode()) {
                     setTag(Tag.NEED_TO_REMOVE, false);
                 }
                 else {
 //                    horse.setUpdatable(false);
-//                    horse.setTag(Tag.NEED_TO_REMOVE, false);
+                    horse.setTag(Tag.NEED_TO_REMOVE, false);
+                    setTag(Tag.NEED_TO_REMOVE, false);
                 }
                 return true;
             }
@@ -526,7 +570,7 @@ public class Entity {
     public static class Snowman extends Entity implements Collidable {
 
         public Snowman(float x, float groundY, Context context) {
-            super(x, 0);
+            super(x, 0, new float[]{0.2f, 0.1f, 0.2f, 0.0f});
 
             setSpeedX(DEFAULT_SPEED_X);
 
@@ -543,19 +587,18 @@ public class Entity {
 
         @Override
         public boolean collidesWithHorse(Horse horse) {
+            if (getTag() == Tag.NEED_TO_REMOVE) return false;
             if (collidesWith(horse)) {
                 if (horse.isInFireMode()) {
                     setTag(Tag.NEED_TO_REMOVE, false);
                 }
                 else {
-                    if (horse.isJumping()) {
-                        if (horse.getBody().bottom < getBody().top + getBody().width() / 8) {
-                            setTag(Tag.NEED_TO_REMOVE, false);
-                        }
-                        else {
-//                          horse.setUpdatable(false);
-//                          horse.setTag(Tag.NEED_TO_REMOVE, false);
-                        }
+                    setTag(Tag.NEED_TO_REMOVE, false);
+                    if (!(horse.isJumping()
+                            && horse.getBodyCollide().bottom < getBodyCollide().top + getBodyCollide().width() / 8
+                            && horse.isJumping && horse.getSpeedY() > 0)) {
+                        //horse.setUpdatable(false);
+                        horse.setTag(Tag.NEED_TO_REMOVE, false);
                     }
                 }
                 return true;

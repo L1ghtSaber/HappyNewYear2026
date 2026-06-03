@@ -12,9 +12,12 @@ import java.util.ArrayList;
 
 public class FlameRectangleView extends View {
 
+    private static final float DEFAULT_SIDE_FACTOR = 0.05f, DEFAULT_RECT_SPEED = 10f;
+
     private Paint primaryPaint, secondaryPaint;
     private RectF primaryRect;
-    private float secondaryRectSide, secondaryRectSideFactor = 0.05f, secondaryRectSpeed = 10f;
+    private Context context;
+    private float secondaryRectSide, secondaryRectSideFactor = DEFAULT_SIDE_FACTOR, secondaryRectSpeed = DEFAULT_RECT_SPEED;
     private ArrayList<SecondaryRect> secondaryRects;
 
     private enum Position {
@@ -39,15 +42,22 @@ public class FlameRectangleView extends View {
     }
 
     private void init(Context context) {
+        this.context = context;
+
         secondaryRects = new ArrayList<>();
 
         primaryPaint = new Paint();
-        primaryPaint.setColor(ContextCompat.getColor(context, R.color.primary));
         primaryPaint.setStyle(Paint.Style.FILL);
 
         secondaryPaint = new Paint();
-        secondaryPaint.setColor(ContextCompat.getColor(context, R.color.secondary));
         secondaryPaint.setStyle(Paint.Style.FILL);
+        reset();
+    }
+
+    public void reset() {
+        secondaryRectSideFactor = DEFAULT_SIDE_FACTOR;
+        secondaryRectSpeed = DEFAULT_RECT_SPEED;
+        setColors(ContextCompat.getColor(context, R.color.primary), ContextCompat.getColor(context, R.color.secondary));
     }
 
     @Override
@@ -151,6 +161,7 @@ public class FlameRectangleView extends View {
     public void setColors(int primary, int secondary) {
         primaryPaint.setColor(primary);
         secondaryPaint.setColor(secondary);
+        invalidate();
     }
 
     private class SecondaryRect {

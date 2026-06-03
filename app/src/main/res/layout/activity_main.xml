@@ -156,6 +156,7 @@
         app:layout_constraintVertical_bias="0.6">
 
         <com.example.happynewyear2026.FlameRectangleView
+            android:id="@+id/open_congrats_FRV"
             android:layout_width="match_parent"
             android:layout_height="match_parent"/>
 
@@ -172,6 +173,40 @@
             android:gravity="center"/>
 
     </FrameLayout>
+
+    <TextView
+        android:id="@+id/new_high_score_TV"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/font_8_bit"
+        android:textAlignment="center"
+        android:textColor="@color/golden_yellow"
+        android:textSize="20sp"
+        android:layout_gravity="center"
+        android:gravity="center"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintVertical_bias="0.7"/>
+
+    <TextView
+        android:id="@+id/congrats_locked_TV"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/font_8_bit"
+        android:textAlignment="center"
+        android:textColor="@color/blood_red"
+        android:textSize="16sp"
+        android:layout_gravity="center"
+        android:gravity="center"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintVertical_bias="0.5"/>
 
     <com.example.happynewyear2026.HorseAnimationView
         android:layout_width="match_parent"

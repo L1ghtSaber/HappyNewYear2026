@@ -113,9 +113,9 @@ public class HorseAnimationView extends View {
 
         canvas.drawRect(0, groundLevel, w, h, groundPaint);
 
-        horse.draw(canvas);
+        horse.draw(canvas, true);
 
-        for (int i = 0; i < snowdriftCount; i++) snowdrifts.get(i).draw(canvas);
+        for (int i = 0; i < snowdriftCount; i++) snowdrifts.get(i).draw(canvas, false);
 
         drawTextBubble(canvas);
 
